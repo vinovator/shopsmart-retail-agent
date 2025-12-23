@@ -52,8 +52,10 @@ shopsmart-retail-agent/
 │                             # - Used only during setup/dev
 │
 ├── scripts/
-│   └── manual_chat.py        # THE PLAYGROUND.
-│                             # - A safe place to test the Brain without the Web
+│   ├── manual_chat.py        # THE PLAYGROUND.
+│   │                         # - A safe place to test the Brain without the Web
+│   └── embed_products.py     # DOMAIN KNOWLEDGE.
+│                             # - Embeds products into the Vector DB
 │
 ├── .env                      # THE SECRETS (API Keys)
 └── database.db               # THE STORAGE (SQLite File)
@@ -97,7 +99,7 @@ Test the agent logic directly in the terminal without starting the server:
 python scripts/manual_chat.py
 ```
 
-### 3. Run the Web Server
+### 4. Run the Web Server
 Start the FastAPI backend:
 ```bash
 uvicorn app.main:app --reload
@@ -106,10 +108,11 @@ uvicorn app.main:app --reload
 The API will be available at `http://127.0.0.1:8000`.
 **Open your browser to `http://127.0.0.1:8000` to access the Dashboard.**
 
-### 4. API Endpoints
+### 5. API Endpoints
 - **Chat**: `POST /chat`
   - Headers: `User-ID: <customer_id>`
   - Body: `{"message": "Can I return order 123?"}`
+- **Admin List**: `GET /admin/tickets`
 - **Admin Review**: `POST /admin/refunds/{ticket_id}/decision`
   - Body: `{"decision": "approve"}` or `{"decision": "reject"}`
 
