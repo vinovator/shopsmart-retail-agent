@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShopSmart Enterprise Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body class="bg-gray-100 h-screen p-6 flex gap-6">
+
+    <div class="w-1/2 bg-white rounded-lg shadow-lg flex flex-col overflow-hidden">
+        <div class="bg-blue-600 p-4 text-white flex justify-between items-center">
+            <h2 class="font-bold text-xl"><i class="fas fa-robot mr-2"></i>Customer Support</h2>
+
+            <div class="flex items-center text-sm">
+                <span class="mr-2">User ID:</span>
+                <input type="number" id="userIdInput" value="45" class="w-16 px-2 py-1 text-black rounded">
+            </div>
+        </div>
+
+        <div id="chatHistory" class="flex-1 p-4 overflow-y-auto space-y-4">
+            <div class="flex justify-start">
+                <div class="bg-gray-200 p-3 rounded-lg max-w-xs text-sm">
+                    Hello! I am the ShopSmart AI. How can I help you today?
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 bg-gray-50 border-t flex">
+            <input type="text" id="chatInput"
+                class="flex-1 border p-2 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Type a message..." onkeypress="handleEnter(event)">
+            <button onclick="sendMessage()" class="bg-blue-600 text-white px-6 py-2 rounded-r-lg hover:bg-blue-700">
+                Send
+            </button>
+        </div>
+    </div>
+
+    <div class="w-1/2 bg-white rounded-lg shadow-lg flex flex-col">
+        <div class="bg-gray-800 p-4 text-white">
+            <h2 class="font-bold text-xl"><i class="fas fa-user-shield mr-2"></i>Manager Console</h2>
+        </div>
+
+        <div class="p-6">
+            <h3 class="font-semibold mb-4 text-gray-700">Pending Approvals</h3>
+
+            <div id="ticketList" class="space-y-3">
+                <p class="text-gray-500 italic text-sm">Loading tickets...</p>
+            </div>
+
+            <button onclick="fetchTickets()" class="mt-4 text-sm text-blue-600 hover:underline">
+                <i class="fas fa-sync mr-1"></i> Refresh List
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000";
+
+        // --- CHAT LOGIC ---
+
+        async function sendMessage() {
+            const input = document.getElementById("chatInput");
+            const history = document.getElementById("chatHistory");
+            const userId = document.getElementById("userIdInput").value;
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            // 1. Add User Message to UI
+            history.innerHTML += `
+                <div class="flex justify-end">
+                    <div class="bg-blue-500 text-white p-3 rounded-lg max-w-xs text-sm">
+                        ${message}
+                    </div>
+                </div>`;
+            input.value = "";
+            scrollToBottom();
+
+            // 2. Add "Typing..." indicator
+            const loadingId = "loading-" + Date.now();
+            history.innerHTML += `
+                <div id="${loadingId}" class="flex justify-start">
+                    <div class="bg-gray-200 p-3 rounded-lg text-sm italic text-gray-500">
+                        Thinking...
+                    </div>
+                </div>`;
+            scrollToBottom();
+
+            try {
+                // 3. Call FastAPI
+                const response = await fetch(`${API_URL}/chat`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "User-ID": userId
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                const data = await response.json();
+
+                // 4. Remove typing indicator and add Agent Message
+                document.getElementById(loadingId).remove();
+
+                // Handle Error vs Success
+                const bgClass = response.ok ? "bg-gray-200" : "bg-red-100 text-red-600";
+                const text = response.ok ? data.response : "Error: " + (data.detail || "Unknown error");
+
+                history.innerHTML += `
+                    <div class="flex justify-start">
+                        <div class="${bgClass} p-3 rounded-lg max-w-xs text-sm whitespace-pre-wrap">${text}</div>
+                    </div>`;
+
+            } catch (error) {
+                document.getElementById(loadingId).remove();
+                alert("Connection Failed. Is the backend running?");
+            }
+            scrollToBottom();
+
+            // Refresh admin panel in case a ticket was created
+            fetchTickets();
+        }
+
+        function handleEnter(e) {
+            if (e.key === "Enter") sendMessage();
+        }
+
+        function scrollToBottom() {
+            const history = document.getElementById("chatHistory");
+            history.scrollTop = history.scrollHeight;
+        }
+
+        // --- ADMIN LOGIC ---
+
+        // Note: We need a new endpoint to LIST tickets. 
+        // For now, we will mock this or add a quick endpoint in main.py?
+        // Let's assume we add GET /admin/tickets to main.py next.
+        async function fetchTickets() {
+            const list = document.getElementById("ticketList");
+
+            try {
+                const response = await fetch(`${API_URL}/admin/tickets`);
+                if (!response.ok) throw new Error("Failed to fetch");
+
+                const tickets = await response.json();
+
+                if (tickets.length === 0) {
+                    list.innerHTML = `<p class="text-gray-400 text-sm">No pending approvals.</p>`;
+                    return;
+                }
+
+                list.innerHTML = tickets.map(t => `
+                    <div class="border p-3 rounded flex justify-between items-center bg-yellow-50 border-yellow-200">
+                        <div>
+                            <div class="font-bold text-sm text-gray-800">Refund Ticket #${t.id}</div>
+                            <div class="text-xs text-gray-600">Order #${t.order_id} | Amount: $${t.amount}</div>
+                            <div class="text-xs text-gray-500 italic">"${t.reason}"</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="decideTicket(${t.id}, 'approve')" class="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600">Approve</button>
+                            <button onclick="decideTicket(${t.id}, 'reject')" class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600">Reject</button>
+                        </div>
+                    </div>
+                `).join("");
+
+            } catch (error) {
+                list.innerHTML = `<p class="text-red-400 text-sm">Could not load tickets.</p>`;
+            }
+        }
+
+        async function decideTicket(id, decision) {
+            if (!confirm(`Are you sure you want to ${decision} ticket #${id}?`)) return;
+
+            await fetch(`${API_URL}/admin/refunds/${id}/decision`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ decision: decision })
+            });
+
+            fetchTickets(); // Refresh list
+        }
+
+        // Initial Load
+        fetchTickets();
+    </script>
+</body>
+
+</html>

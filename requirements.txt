@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pydantic-ai
+sqlmodel
+polyfactory
+python-dotenv
+ipykernel 
+pandas
+matplotlib
+aiofiles
