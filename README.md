@@ -9,6 +9,7 @@ An intelligent customer support agent capable of handling orders, modified with 
 - **Tool Use**: Agent can look up orders, check status, and request refunds.
 - **Human-in-the-Loop**: High-value refund requests (>$50) trigger a review ticket system for admin approval.
 - **Frontend Dashboard**: A comprehensive UI for both Customers (Chat) and Managers (Approval Console).
+- **Semantic Product Search**: Vector-based search using `Qdrant` and `Google Gen AI` to find products by meaning (e.g., "winter clothes").
 - **REST API**: FastAPI endpoints for chat interaction and admin dashboard actions.
 
 ## 📂 Project Structure
@@ -83,7 +84,14 @@ Before running the agent, populate the database with dummy data using the provid
 - Open `notebooks/seed_data.ipynb` in VS Code or Jupyter.
 - Run all cells to reset and seed `database.db`.
 
-### 2. Manual Testing (CLI)
+### 2. Setup Vector Database (Semantic Search)
+To enable the "search_products" tool, you must generate the vector embeddings:
+```bash
+python scripts/embed_products.py
+```
+This requires `GOOGLE_API_KEY` to be set in your `.env`.
+
+### 3. Manual Testing (CLI)
 Test the agent logic directly in the terminal without starting the server:
 ```bash
 python scripts/manual_chat.py

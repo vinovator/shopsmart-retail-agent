@@ -26,6 +26,11 @@ load_dotenv()
 # Import our models
 from app.models import Order, Customer, Product, OrderStatus, RefundTicket, TicketStatus
 
+# For Vector Search
+import os
+from google import genai
+from qdrant_client import QdrantClient
+
 # The Context - Dependency Injection
 class SupportDeps(BaseModel):
     """
@@ -204,3 +209,57 @@ def request_refund(
             f"Request Received: Since the amount ${order.total_price} is greater than $50, "
             f"Refund of ${order.total_price} for order {order.id} has been submitted for approval."
         )
+
+
+
+# --- VECTOR DB & AI CLIENT SETUP ---
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+qdrant_path = os.path.join(base_dir, "qdrant_data")
+qdrant = QdrantClient(path=qdrant_path)
+
+# Initialize the new Client
+# Note: PydanticAI might handle the Agent chat, but WE handle the embeddings manually here.
+ai_client = None
+if os.getenv("GOOGLE_API_KEY"):
+    ai_client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+
+@agent.tool
+def search_products(ctx: RunContext[SupportDeps], query: str) -> str:
+    """
+    Search for products based on concepts (Semantic Search).
+    Use for: 'recommendations', 'winter clothes', 'gift ideas', or vague descriptions.
+    """
+    if not ai_client:
+        return "Error: AI Client not initialized."
+
+    print(f"🔍 Vector Search Query: {query}")
+    
+    try:
+        # 1. Convert Query to Vector (New SDK)
+        response = ai_client.models.embed_content(
+            model="text-embedding-004",
+            contents=query
+        )
+        user_vector = response.embeddings[0].values
+        
+        # 2. Search Qdrant
+        hits = qdrant.search(
+            collection_name="shop_products",
+            query_vector=user_vector,
+            limit=3
+        )
+        
+        if not hits:
+            return "No relevant products found."
+        
+        # 3. Format Results
+        report = []
+        for hit in hits:
+            info = hit.payload
+            if hit.score > 0.4:
+                report.append(f"Product: {info['name']} (${info['price']}) - {info['description']}")
+        
+        return "\n".join(report) if report else "No relevant matches found."
+        
+    except Exception as e:
+        return f"Search Error: {str(e)}"

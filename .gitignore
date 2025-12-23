@@ -25,3 +25,4 @@ venv.bak/
 *.swp
 *.swo
 database.db
+qdrant_data/

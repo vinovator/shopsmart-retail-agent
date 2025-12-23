@@ -8,3 +8,5 @@ ipykernel
 pandas
 matplotlib
 aiofiles
+google-genai
+qdrant-client
