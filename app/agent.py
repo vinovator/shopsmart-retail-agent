@@ -123,28 +123,31 @@ def get_order_details(ctx: RunContext[SupportDeps], order_id: int) -> str:
 
 
 @agent.tool
-def check_refund_status(ctx: RunContext[SupportDeps], order_id: int) -> str:
+def check_refund_status(ctx: RunContext[SupportDeps], order_id: int | None = None) -> str:
     """
-    Check the status of a refund request (ticket) for a specific order.
-    Use this when the user asks "Where is my refund?" or "Is my return approved?".
+    Check the status of refund requests.
+    - If order_id is provided, checks that specific order.
+    - If no order_id is provided, lists ALL pending refunds for the user.
     """
     session = ctx.deps.db
     user_id = ctx.deps.user_id
     
-    # query for tickets belonging to this user and order
-    statement = select(RefundTicket).where(
-        RefundTicket.customer_id == user_id,
-        RefundTicket.order_id == order_id
-    )
-    tickets = session.exec(statement).all()
+    query = select(RefundTicket).where(RefundTicket.customer_id == user_id)
+    
+    # If the user specified an order, filter by it
+    if order_id:
+        query = query.where(RefundTicket.order_id == order_id)
+        
+    tickets = session.exec(query).all()
     
     if not tickets:
-        return "No refund requests found for this order."
+        return "No active refund tickets found."
     
-    # Get the most recent ticket
-    ticket = tickets[-1]
-    
-    return f"Refund Ticket #{ticket.id}: Current Status is '{ticket.status.value}'. Created on {ticket.created_at.date()}."
+    report = []
+    for t in tickets:
+        report.append(f"Ticket #{t.id} for Order {t.order_id}: Status = {t.status.value}")
+        
+    return "\n".join(report)
 
 
 # All above tools are GET operations
