@@ -104,3 +104,7 @@ The API will be available at `http://127.0.0.1:8000`.
   - Body: `{"message": "Can I return order 123?"}`
 - **Admin Review**: `POST /admin/refunds/{ticket_id}/decision`
   - Body: `{"decision": "approve"}` or `{"decision": "reject"}`
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
